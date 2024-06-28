@@ -5,121 +5,112 @@ using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using DG.Tweening;
 
-public class CameraController : MonoBehaviour
+public class RoomNavigator : MonoBehaviour
 {
-    public GameObject[] roomPositions; 
-    public Canvas[] roomCanvases; 
-    public Canvas initialCanvas; 
-    public GameObject ExitButton;
-    public Slider transitionSpeedSlider; 
+  public Transform[] viewPoints;
+  public Canvas[] roomUIs;        
+  public Canvas startMenu;       
+  public GameObject exitButton;   
+  public Slider transitionSlider;   
+  private int currentViewIndex = -1;
+  private float transitionDuration = 2f; 
 
-    private int Counter = -1; 
-    private float transitionSpeed = 2f;
+  void Start()
+  {
+    DeactivateAllUIs();
+    exitButton.SetActive(true);
+    startMenu.gameObject.SetActive(true);
 
-    private void Start()
+    transitionSlider.onValueChanged.AddListener(UpdateTransitionTime);
+  }
+
+  void DeactivateAllUIs()
+  {
+    foreach (Canvas ui in roomUIs)
     {
-        DisableAllCanvases();
-        ExitButton.SetActive(true); 
-        initialCanvas.gameObject.SetActive(true); 
-
-        
-        transitionSpeedSlider.onValueChanged.AddListener(UpdateTransitionSpeed);
+      ui.gameObject.SetActive(false);
     }
+  }
 
-    private void DisableAllCanvases()
+  public void BeginGame()
+  {
+    currentViewIndex = 0;
+    MoveToView();
+  }
+
+  void UpdateTransitionTime(float value)
+  {
+    transitionDuration = value;
+  }
+
+  void MoveToView()
+  {
+    if (currentViewIndex >= 0 && currentViewIndex < viewPoints.Length && viewPoints[currentViewIndex] != null)
     {
-        foreach (Canvas canvas in roomCanvases)
+      transform.DOMove(viewPoints[currentViewIndex].position, transitionDuration).SetEase(Ease.InOutSine);
+      transform.rotation = viewPoints[currentViewIndex].rotation;
+
+      ActivateUI(currentViewIndex);
+    }
+  }
+
+  void ActivateUI(int index)
+  {
+    if (index >= 0 && index < roomUIs.Length)
+    {
+      DeactivateAllUIs();
+      roomUIs[index].gameObject.SetActive(true);
+    }
+  }
+
+  public void NextView()
+  {
+    currentViewIndex++;
+    if (currentViewIndex >= viewPoints.Length)
+    {
+      currentViewIndex = 0;
+      MoveToView();
+      startMenu.gameObject.SetActive(true);
+
+      foreach (Canvas ui in roomUIs)
+      {
+        if (ui != startMenu)
         {
-            canvas.gameObject.SetActive(false);
+          ui.gameObject.SetActive(false);
         }
-    }
+      }
 
-    public void ReloadScene()
+      RestartGame();
+    }
+    else
     {
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+      MoveToView();
     }
 
-    public void ActualStart()
+    exitButton.SetActive(true);
+  }
+
+  public void PreviousView()
+  {
+    currentViewIndex--;
+    if (currentViewIndex < 0)
     {
-        Counter = 0; 
-        MoveCamera();
+      currentViewIndex = viewPoints.Length - 1;
     }
+    MoveToView();
+  }
 
-    private void UpdateTransitionSpeed(float value)
-    {
-        transitionSpeed = value;
-    }
+  public void ExitApplication()
+  {
+    #if UNITY_EDITOR
+    UnityEditor.EditorApplication.isPlaying = false;
+    #else
+    Application.Quit();
+    #endif
+  }
 
-    private void MoveCamera()
-    {
-        if (Counter >= 0 && Counter < roomPositions.Length && roomPositions[Counter] != null)
-        {
-            transform.DOMove(roomPositions[Counter].transform.position, transitionSpeed).SetEase(Ease.InOutSine);
-            transform.rotation = roomPositions[Counter].transform.rotation; 
-
-            ActivateCanvas(Counter);
-        }
-    }
-
-    private void ActivateCanvas(int index)
-    {
-        if (index >= 0 && index < roomCanvases.Length)
-        {
-            DisableAllCanvases();
-            roomCanvases[index].gameObject.SetActive(true);
-        }
-    }
-
-    public void NextScene()
-    {
-        Counter++;
-        if (Counter >= roomPositions.Length)
-        {
-            Counter = 0; 
-            MoveCamera();
-            initialCanvas.gameObject.SetActive(true); 
-           
-            foreach (Canvas canvas in roomCanvases)
-            {
-                if (canvas != initialCanvas)
-                {
-                    canvas.gameObject.SetActive(false);
-                }
-            }
-
-
-            RestartApplication();
-        }
-        else
-        {
-            MoveCamera();
-        }
-
-        
-        ExitButton.SetActive(true);
-    }
-
-    public void Previous()
-    {
-        Counter--;
-        if (Counter < 0)
-        {
-            Counter = roomPositions.Length - 1; 
-        }
-        MoveCamera();
-    }
-
-    public void ExitApp()
-    {
-        #if UNITY_EDITOR
-        UnityEditor.EditorApplication.isPlaying = false;
-        #else
-        Application.Quit();
-        #endif
-    }
-
-    private void RestartApplication()
-    {
-        SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
-    }
+  void RestartGame()
+  {
+    SceneManager.LoadScene(SceneManager.GetActiveScene().buildIndex);
+  }
 }
